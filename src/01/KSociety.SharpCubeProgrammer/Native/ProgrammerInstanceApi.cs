@@ -75,6 +75,14 @@ namespace SharpCubeProgrammer.Native
                 {
                     target = Path.Combine(currentDirectory, "dll", Environment.Is64BitProcess ? "x64" : "x86");
                 }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    target = Path.Combine(currentDirectory, "dylib", "osx");
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    target = Path.Combine(currentDirectory, "so", Environment.Is64BitProcess ? "x64" : "x86");
+                }
 
                 if (String.IsNullOrEmpty(target))
                 {
@@ -84,9 +92,21 @@ namespace SharpCubeProgrammer.Native
                 {
                     try
                     {
-                        var stLinkDriverResult = this.LoadStLinkDriver(target);
+                        bool stLinkDriverResultBool = false;
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                        {
+                            var stLinkDriverResult = this.LoadStLinkDriver(target);
 
-                        if (stLinkDriverResult != null)
+                            if (stLinkDriverResult != null)
+                            {
+                                stLinkDriverResultBool = true;
+                            }
+                        } else
+                        {
+                            stLinkDriverResultBool = true; // Skip for non-Windows platforms as LoadStLinkDriver is not used there
+                        }
+
+                        if (stLinkDriverResultBool)
                         {
                             var programmerResult = this.LoadProgrammer(target);
 
@@ -122,32 +142,112 @@ namespace SharpCubeProgrammer.Native
                 {
                     if (this.HandleSTLinkDriver == null)
                     {
-                        // Check if the local machine has KB2533623 installed in order
-                        // to use the more secure flags when calling LoadLibraryEx
-                        bool hasKB2533623;
-
-                        using (var hModule = Utility.LoadLibraryEx(Utility.KernelLibName, IntPtr.Zero, 0))
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                         {
-                            // If the AddDllDirectory function is found then the flags are supported.
-                            hasKB2533623 = Utility.GetProcAddress(hModule, "AddDllDirectory") != IntPtr.Zero;
+                            // Check if the local machine has KB2533623 installed in order
+                            // to use the more secure flags when calling LoadLibraryEx
+                            bool hasKB2533623;
+
+                            using (var hModule = Utility.LoadLibraryEx(Utility.KernelLibName, IntPtr.Zero, 0))
+                            {
+                                // If the AddDllDirectory function is found then the flags are supported.
+                                hasKB2533623 = Utility.GetProcAddress(hModule, "AddDllDirectory") != IntPtr.Zero;
+                            }
+
+                            IntPtr dllDirectoryCookie = IntPtr.Zero;
+
+                            try
+                            {
+                                // Add the Programmer subdirectory to the DLL search path
+                                // This ensures STLinkUSBDriver.dll can find its dependencies
+                                var programmerPath = Path.Combine(target, "Programmer");
+
+                                if (hasKB2533623)
+                                {
+                                    // Use the modern API if available
+                                    dllDirectoryCookie = Utility.AddDllDirectory(programmerPath);
+
+                                    if (dllDirectoryCookie == IntPtr.Zero)
+                                    {
+                                        this._logger.LogWarning("Failed to add DLL directory: {Path}", programmerPath);
+                                    }
+                                }
+                                else
+                                {
+                                    // Fallback to SetDllDirectory for older Windows versions
+                                    if (!Utility.SetDllDirectory(programmerPath))
+                                    {
+                                        this._logger.LogWarning("Failed to set DLL directory: {Path}", programmerPath);
+                                    }
+                                }
+
+                                var dwFlags = 0;
+
+                                if (hasKB2533623)
+                                {
+                                    // If KB2533623 is installed then specify the more secure LOAD_LIBRARY_SEARCH_DEFAULT_DIRS in dwFlags.
+                                    dwFlags = Utility.LOAD_LIBRARY_SEARCH_DEFAULT_DIRS;
+                                }
+
+                                // Try to load from Programmer subdirectory first (where all dependencies are)
+                                var stLinkDriverPathInProgrammer = Path.Combine(target, "Programmer", "STLinkUSBDriver.dll");
+                                var stLinkDriverPath = File.Exists(stLinkDriverPathInProgrammer) 
+                                    ? stLinkDriverPathInProgrammer 
+                                    : Path.Combine(target, "STLinkUSBDriver.dll");
+
+                                this.HandleSTLinkDriver = Utility.LoadLibraryEx(stLinkDriverPath, IntPtr.Zero, dwFlags);
+
+                                if (this.HandleSTLinkDriver.IsInvalid)
+                                {
+                                    var error = Marshal.GetLastWin32Error();
+                                    this.HandleSTLinkDriver = null;
+
+                                    throw new Exception("K-Society ProgrammerInstanceApi StLinkDriver loading error: " + error);
+                                }
+                            }
+                            finally
+                            {
+                                // Clean up: remove the directory from the search path
+                                if (hasKB2533623 && dllDirectoryCookie != IntPtr.Zero)
+                                {
+                                    Utility.RemoveDllDirectory(dllDirectoryCookie);
+                                }
+                                else if (!hasKB2533623)
+                                {
+                                    // Reset DllDirectory to default
+                                    Utility.SetDllDirectory(null);
+                                }
+                            }
                         }
-
-                        var dwFlags = 0;
-
-                        if (hasKB2533623)
+                        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                         {
-                            // If KB2533623 is installed then specify the more secure LOAD_LIBRARY_SEARCH_DEFAULT_DIRS in dwFlags.
-                            dwFlags = Utility.LOAD_LIBRARY_SEARCH_DEFAULT_DIRS;
+                            var libraryPath = Path.Combine(target, "libSTLinkUSBDriver.dylib");
+                            var handle = Utility.dlopen(libraryPath, Utility.RTLD_NOW);
+
+                            if (handle == IntPtr.Zero)
+                            {
+                                var errorPtr = Utility.dlerror();
+                                var errorMsg = errorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errorPtr) : "Unknown error";
+                                throw new Exception($"K-Society ProgrammerInstanceApi StLinkDriver loading error: {errorMsg}");
+                            }
+
+                            this.HandleSTLinkDriver = new SafeLibraryHandle();
+                            typeof(SafeLibraryHandle).GetField("handle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(this.HandleSTLinkDriver, handle);
                         }
-
-                        this.HandleSTLinkDriver = Utility.LoadLibraryEx(target + @"\STLinkUSBDriver.dll", IntPtr.Zero, dwFlags);
-
-                        if (this.HandleSTLinkDriver.IsInvalid)
+                        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                         {
-                            var error = Marshal.GetLastWin32Error();
-                            this.HandleSTLinkDriver = null;
+                            var libraryPath = Path.Combine(target, "libSTLinkUSBDriver.so");
+                            var handle = Utility.dlopen(libraryPath, Utility.RTLD_NOW);
 
-                            throw new Exception("K-Society ProgrammerInstanceApi StLinkDriver loading error: " + error);
+                            if (handle == IntPtr.Zero)
+                            {
+                                var errorPtr = Utility.dlerror();
+                                var errorMsg = errorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errorPtr) : "Unknown error";
+                                throw new Exception($"K-Society ProgrammerInstanceApi StLinkDriver loading error: {errorMsg}");
+                            }
+
+                            this.HandleSTLinkDriver = new SafeLibraryHandle();
+                            typeof(SafeLibraryHandle).GetField("handle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(this.HandleSTLinkDriver, handle);
                         }
                     }
                 }
@@ -164,16 +264,261 @@ namespace SharpCubeProgrammer.Native
                 {
                     if (this.HandleProgrammer == null)
                     {
-                        var dwFlags = Utility.LOAD_WITH_ALTERED_SEARCH_PATH;
-
-                        this.HandleProgrammer = Utility.LoadLibraryEx(target + @"\CubeProgrammer_API.dll", IntPtr.Zero, dwFlags);
-
-                        if (this.HandleProgrammer.IsInvalid)
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                         {
-                            var error = Marshal.GetLastWin32Error();
-                            this.HandleProgrammer = null;
+                            // Check if the local machine has KB2533623 installed
+                            bool hasKB2533623;
 
-                            throw new Exception("K-Society ProgrammerInstanceApi Programmer loading error: " + error);
+                            using (var hModule = Utility.LoadLibraryEx(Utility.KernelLibName, IntPtr.Zero, 0))
+                            {
+                                hasKB2533623 = Utility.GetProcAddress(hModule, "AddDllDirectory") != IntPtr.Zero;
+                            }
+
+                            IntPtr dllDirectoryCookie = IntPtr.Zero;
+
+                            try
+                            {
+                                // CubeProgrammer_API.dll is in the Programmer subdirectory
+                                var programmerPath = Path.Combine(target, "Programmer");
+
+                                if (hasKB2533623)
+                                {
+                                    // Add the Programmer directory to DLL search path
+                                    dllDirectoryCookie = Utility.AddDllDirectory(programmerPath);
+
+                                    if (dllDirectoryCookie == IntPtr.Zero)
+                                    {
+                                        this._logger.LogWarning("Failed to add DLL directory for Programmer: {Path}", programmerPath);
+                                    }
+                                }
+                                else
+                                {
+                                    // Fallback for older Windows versions
+                                    if (!Utility.SetDllDirectory(programmerPath))
+                                    {
+                                        this._logger.LogWarning("Failed to set DLL directory for Programmer: {Path}", programmerPath);
+                                    }
+                                }
+
+                                // Use LOAD_LIBRARY_SEARCH_DEFAULT_DIRS for better security if available
+                                var dwFlags = hasKB2533623 ? Utility.LOAD_LIBRARY_SEARCH_DEFAULT_DIRS : Utility.LOAD_WITH_ALTERED_SEARCH_PATH;
+
+                                // Load from Programmer subdirectory
+                                var cubeProgrammerPath = Path.Combine(programmerPath, "CubeProgrammer_API.dll");
+
+                                this.HandleProgrammer = Utility.LoadLibraryEx(cubeProgrammerPath, IntPtr.Zero, dwFlags);
+
+                                if (this.HandleProgrammer.IsInvalid)
+                                {
+                                    var error = Marshal.GetLastWin32Error();
+                                    this.HandleProgrammer = null;
+
+                                    throw new Exception("K-Society ProgrammerInstanceApi Programmer loading error: " + error);
+                                }
+                            }
+                            finally
+                            {
+                                // Clean up: remove the directory from the search path
+                                if (hasKB2533623 && dllDirectoryCookie != IntPtr.Zero)
+                                {
+                                    Utility.RemoveDllDirectory(dllDirectoryCookie);
+                                }
+                                else if (!hasKB2533623)
+                                {
+                                    // Reset DllDirectory to default
+                                    Utility.SetDllDirectory(null);
+                                }
+                            }
+                        }
+                        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                        {
+                            // libCubeProgrammer_API.dylib is in the Programmer subdirectory
+                            var programmerPath = Path.Combine(target, "Programmer");
+                            var libraryPath = Path.Combine(programmerPath, "libCubeProgrammer_API.dylib");
+
+                            this._logger.LogInformation("Attempting to load macOS library from: {Path}", libraryPath);
+                            this._logger.LogInformation("File exists: {Exists}", File.Exists(libraryPath));
+
+                            if (!File.Exists(libraryPath))
+                            {
+                                this._logger.LogError("Library file not found at: {Path}", libraryPath);
+                                this._logger.LogInformation("Target directory: {Target}", target);
+                                this._logger.LogInformation("Programmer directory: {ProgrammerPath}", programmerPath);
+
+                                // List files in the target directory for debugging
+                                if (Directory.Exists(target))
+                                {
+                                    this._logger.LogInformation("Files in target directory:");
+                                    foreach (var file in Directory.GetFiles(target, "*.*", SearchOption.AllDirectories))
+                                    {
+                                        this._logger.LogInformation("  - {File}", file);
+                                    }
+                                }
+
+                                throw new Exception($"K-Society ProgrammerInstanceApi Programmer loading error: Library file not found at {libraryPath}");
+                            }
+
+                            // Pre-load dependencies on macOS in the correct order
+                            this._logger.LogInformation("Pre-loading macOS dependencies...");
+
+                            // Step 1: Load base libraries
+                            var baseDependencies = new[]
+                            {
+                                "libusb-1.0.0.dylib",
+                                "libcrypto.3.dylib",
+                                "libssl.3.dylib"
+                            };
+
+                            foreach (var dep in baseDependencies)
+                            {
+                                var depPath = Path.Combine(programmerPath, dep);
+                                if (File.Exists(depPath))
+                                {
+                                    this._logger.LogInformation("Loading base dependency: {Dep}", dep);
+                                    var depHandle = Utility.dlopen(depPath, Utility.RTLD_NOW | Utility.RTLD_GLOBAL);
+                                    if (depHandle == IntPtr.Zero)
+                                    {
+                                        var depErrorPtr = Utility.dlerror();
+                                        var depErrorMsg = depErrorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(depErrorPtr) : "Unknown error";
+                                        this._logger.LogWarning("Failed to load dependency {Dep}: {Error}", dep, depErrorMsg);
+                                    }
+                                    else
+                                    {
+                                        this._logger.LogInformation("Successfully loaded dependency: {Dep}", dep);
+                                    }
+                                }
+                            }
+
+                            // Step 2: Load STLinkUSBDriver from Programmer directory (same location as other libs)
+                            var stLinkDriverPath = Path.Combine(programmerPath, "libSTLinkUSBDriver.dylib");
+                            if (File.Exists(stLinkDriverPath))
+                            {
+                                this._logger.LogInformation("Loading STLinkUSBDriver from: {Path}", stLinkDriverPath);
+                                var stLinkHandle = Utility.dlopen(stLinkDriverPath, Utility.RTLD_NOW | Utility.RTLD_GLOBAL);
+                                if (stLinkHandle == IntPtr.Zero)
+                                {
+                                    var errorPtr = Utility.dlerror();
+                                    var errorMsg = errorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errorPtr) : "Unknown error";
+                                    this._logger.LogWarning("Failed to load STLinkUSBDriver: {Error}", errorMsg);
+                                }
+                                else
+                                {
+                                    this._logger.LogInformation("Successfully loaded STLinkUSBDriver");
+                                }
+                            }
+
+                            // Step 3: Load other dependencies
+                            var otherDependencies = new[]
+                            {
+                                "libhsmp11.dylib",
+                                "libFileManager.dylib",
+                                "libxerces-c-3.2.dylib",
+                                "libjlinkarm.dylib"
+                            };
+
+                            foreach (var dep in otherDependencies)
+                            {
+                                var depPath = Path.Combine(programmerPath, dep);
+                                if (File.Exists(depPath))
+                                {
+                                    this._logger.LogInformation("Loading dependency: {Dep}", dep);
+                                    var depHandle = Utility.dlopen(depPath, Utility.RTLD_NOW | Utility.RTLD_GLOBAL);
+                                    if (depHandle == IntPtr.Zero)
+                                    {
+                                        var depErrorPtr = Utility.dlerror();
+                                        var depErrorMsg = depErrorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(depErrorPtr) : "Unknown error";
+                                        this._logger.LogWarning("Failed to load dependency {Dep}: {Error}", dep, depErrorMsg);
+                                    }
+                                    else
+                                    {
+                                        this._logger.LogInformation("Successfully loaded dependency: {Dep}", dep);
+                                    }
+                                }
+                            }
+
+                            // Step 4: Load Qt frameworks (QtCore must be loaded first)
+                            var qtFrameworks = new[]
+                            {
+                                "QtCore.framework/Versions/A/QtCore",
+                                "QtNetwork.framework/Versions/A/QtNetwork",
+                                "QtQml.framework/Versions/A/QtQml",
+                                "QtXml.framework/Versions/A/QtXml",
+                                "QtSerialPort.framework/Versions/A/QtSerialPort"
+                            };
+
+                            foreach (var framework in qtFrameworks)
+                            {
+                                var frameworkPath = Path.Combine(programmerPath, framework);
+                                if (File.Exists(frameworkPath))
+                                {
+                                    this._logger.LogInformation("Loading Qt framework: {Framework}", framework);
+                                    var fwHandle = Utility.dlopen(frameworkPath, Utility.RTLD_NOW | Utility.RTLD_GLOBAL);
+                                    if (fwHandle == IntPtr.Zero)
+                                    {
+                                        var fwErrorPtr = Utility.dlerror();
+                                        var fwErrorMsg = fwErrorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(fwErrorPtr) : "Unknown error";
+                                        this._logger.LogWarning("Failed to load framework {Framework}: {Error}", framework, fwErrorMsg);
+                                    }
+                                    else
+                                    {
+                                        this._logger.LogInformation("Successfully loaded framework: {Framework}", framework);
+                                    }
+                                }
+                            }
+
+                            // Step 5: Finally, try to load the main library
+                            this._logger.LogInformation("Loading main library: libCubeProgrammer_API.dylib");
+                            var handle = Utility.dlopen(libraryPath, Utility.RTLD_NOW | Utility.RTLD_GLOBAL);
+
+                            if (handle == IntPtr.Zero)
+                            {
+                                var errorPtr = Utility.dlerror();
+                                var errorMsg = errorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errorPtr) : "Unknown error";
+                                this._logger.LogError("dlopen failed for {Path}. Error: {Error}", libraryPath, errorMsg);
+
+                                // Try with RTLD_LAZY as fallback
+                                this._logger.LogInformation("Retrying with RTLD_LAZY...");
+                                handle = Utility.dlopen(libraryPath, Utility.RTLD_LAZY | Utility.RTLD_GLOBAL);
+
+                                if (handle == IntPtr.Zero)
+                                {
+                                    errorPtr = Utility.dlerror();
+                                    errorMsg = errorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errorPtr) : "Unknown error";
+                                    throw new Exception($"K-Society ProgrammerInstanceApi Programmer loading error: {errorMsg} (Path: {libraryPath})");
+                                }
+                            }
+
+                            this._logger.LogInformation("Successfully loaded libCubeProgrammer_API.dylib");
+                            this.HandleProgrammer = new SafeLibraryHandle();
+                            typeof(SafeLibraryHandle).GetField("handle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(this.HandleProgrammer, handle);
+                        }
+                        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                        {
+                            // libCubeProgrammer_API.so is in the Programmer subdirectory
+                            var programmerPath = Path.Combine(target, "Programmer");
+                            var libraryPath = Path.Combine(programmerPath, "libCubeProgrammer_API.so");
+
+                            this._logger.LogInformation("Attempting to load Linux library from: {Path}", libraryPath);
+                            this._logger.LogInformation("File exists: {Exists}", File.Exists(libraryPath));
+
+                            if (!File.Exists(libraryPath))
+                            {
+                                this._logger.LogError("Library file not found at: {Path}", libraryPath);
+                                throw new Exception($"K-Society ProgrammerInstanceApi Programmer loading error: Library file not found at {libraryPath}");
+                            }
+
+                            var handle = Utility.dlopen(libraryPath, Utility.RTLD_NOW);
+
+                            if (handle == IntPtr.Zero)
+                            {
+                                var errorPtr = Utility.dlerror();
+                                var errorMsg = errorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errorPtr) : "Unknown error";
+                                this._logger.LogError("dlopen failed for {Path}. Error: {Error}", libraryPath, errorMsg);
+                                throw new Exception($"K-Society ProgrammerInstanceApi Programmer loading error: {errorMsg} (Path: {libraryPath})");
+                            }
+
+                            this.HandleProgrammer = new SafeLibraryHandle();
+                            typeof(SafeLibraryHandle).GetField("handle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(this.HandleProgrammer, handle);
                         }
                     }
                 }
@@ -1031,7 +1376,21 @@ namespace SharpCubeProgrammer.Native
                     return null;
                 }
 
-                var address = Utility.GetProcAddress(this.HandleProgrammer, functionName);
+                IntPtr address = IntPtr.Zero;
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    address = Utility.GetProcAddress(this.HandleProgrammer, functionName);
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    var handle = typeof(SafeLibraryHandle).GetField("handle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(this.HandleProgrammer) as IntPtr?;
+
+                    if (handle.HasValue && handle.Value != IntPtr.Zero)
+                    {
+                        address = Utility.dlsym(handle.Value, functionName);
+                    }
+                }
 
                 if (address == IntPtr.Zero)
                 {

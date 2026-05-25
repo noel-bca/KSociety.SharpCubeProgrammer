@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright © K-Society and contributors. All rights reserved. Licensed under the K-Society License. See LICENSE.TXT file in the project root for full license information. -->
+
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Condition=" '$(OS)' == 'WINDOWS_NT' AND ('$(Platform)' == 'x86' OR '$(Platform)' == 'AnyCPU') ">
+    <Content Include="$(MSBuildThisFileDirectory)native\x86\Programmer\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dll\x86\Programmer\%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\Programmer\version">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dll\x86\Programmer\version</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\x86\STLinkUSBDriver.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dll\x86\STLinkUSBDriver.dll</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\x86\STLinkUSBDriver.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dll\x86\Programmer\STLinkUSBDriver.dll</Link>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+  <ItemGroup Condition=" '$(OS)' == 'WINDOWS_NT' AND ('$(Platform)' == 'x64' OR '$(Platform)' == 'AnyCPU') ">
+    <Content Include="$(MSBuildThisFileDirectory)native\x64\Programmer\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dll\x64\Programmer\%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\Programmer\version">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dll\x64\Programmer\version</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\x64\STLinkUSBDriver.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dll\x64\STLinkUSBDriver.dll</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\x64\STLinkUSBDriver.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dll\x64\Programmer\STLinkUSBDriver.dll</Link>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+
+  <!-- macOS native libraries -->
+  <ItemGroup Condition=" '$(OS)' == 'Unix' ">
+    <Content Include="$(MSBuildThisFileDirectory)native\osx\Programmer\*.dylib">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\Programmer\%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\osx\libSTLinkUSBDriver.dylib">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\libSTLinkUSBDriver.dylib</Link>
+      <Visible>false</Visible>
+    </Content>
+    <!-- Copy STLinkUSBDriver to Programmer subdirectory too, so libCubeProgrammer_API can find it via @rpath -->
+    <Content Include="$(MSBuildThisFileDirectory)native\osx\libSTLinkUSBDriver.dylib">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\Programmer\libSTLinkUSBDriver.dylib</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\Programmer\version">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\Programmer\version</Link>
+      <Visible>false</Visible>
+    </Content>
+    <!-- Qt Frameworks for macOS -->
+    <Content Include="$(MSBuildThisFileDirectory)native\osx\Programmer\QtCore.framework\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\Programmer\QtCore.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\osx\Programmer\QtNetwork.framework\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\Programmer\QtNetwork.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\osx\Programmer\QtQml.framework\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\Programmer\QtQml.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\osx\Programmer\QtSerialPort.framework\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\Programmer\QtSerialPort.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)native\osx\Programmer\QtXml.framework\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>dylib\osx\Programmer\QtXml.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="@(None)">
+      <Visible Condition="'%(NuGetItemType)' == 'None' and '%(NuGetPackageId)' == 'BCA.SharpCubeProgrammer'">False</Visible>
+    </None>
+  </ItemGroup>
+</Project>

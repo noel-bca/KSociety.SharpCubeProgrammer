@@ -3,6 +3,7 @@
 namespace SharpCubeProgrammer.Native
 {
     using Microsoft.Win32.SafeHandles;
+    using System.Runtime.InteropServices;
 
     /// <summary>
     /// A class that represents a handle to a library.  This class cannot be inherited.
@@ -28,7 +29,16 @@ namespace SharpCubeProgrammer.Native
         /// </returns>
         protected override bool ReleaseHandle()
         {
-            return Utility.FreeLibrary(this.handle);
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return Utility.FreeLibrary(this.handle);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                return Utility.dlclose(this.handle) == 0;
+            }
+
+            return false;
         }
     }
 }

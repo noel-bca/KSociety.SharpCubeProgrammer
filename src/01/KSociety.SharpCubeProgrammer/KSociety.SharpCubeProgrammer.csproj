@@ -7,36 +7,108 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Platforms>AnyCPU;x64;x86</Platforms>
     <RootNamespace>SharpCubeProgrammer</RootNamespace>
+    <SignAssembly>False</SignAssembly>
+    <PackageId>BCA.SharpCubeProgrammer</PackageId>
+    <Version>1.0.1</Version>
+    <AssemblyName>BCA.SharpCubeProgrammer</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="BuildMultiTargeting\KSociety.SharpCubeProgrammer.props">
+    <Content Include="BuildMultiTargeting\BCA.SharpCubeProgrammer.props">
       <PackagePath>buildMultiTargeting</PackagePath>
       <Pack>true</Pack>
     </Content>
-    <Content Include="BuildMultiTargeting\KSociety.SharpCubeProgrammer.targets">
+    <Content Include="BuildMultiTargeting\BCA.SharpCubeProgrammer.targets">
       <PackagePath>buildMultiTargeting</PackagePath>
       <Pack>true</Pack>
     </Content>
-    <Content Include="Build\KSociety.SharpCubeProgrammer.targets" Pack="true" PackagePath="build" />
-    <Content Include="Build\KSociety.SharpCubeProgrammer.props" Pack="true" PackagePath="build" />
+    <Content Include="Build\BCA.SharpCubeProgrammer.targets" Pack="true" PackagePath="build" />
+    <Content Include="Build\BCA.SharpCubeProgrammer.props" Pack="true" PackagePath="build" />
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(OS)' == 'WINDOWS_NT' AND ('$(Platform)' == 'x64' OR '$(Platform)' == 'AnyCPU') ">
-    <None Include="..\..\..\Programmer\x64\*.dll" Pack="true" PackagePath="build\native\x64\Programmer" Visible="false" Exclude="**\STLinkUSBDriver.dll" Link="dll\x64\%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest">
-
+  <!-- Pack x64 DLLs - Always include in package regardless of build platform -->
+  <ItemGroup Condition=" '$(OS)' == 'WINDOWS_NT' ">
+    <None Include="..\..\..\Programmer\x64\*.dll" Pack="true" PackagePath="build\native\x64\Programmer" Visible="false" Exclude="**\STLinkUSBDriver.dll">
+      <Link>dll\x64\Programmer\%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$(Platform)' == 'x64' OR '$(Platform)' == 'AnyCPU' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$(Platform)' == 'x64' OR '$(Platform)' == 'AnyCPU' ">PreserveNewest</CopyToPublishDirectory>
     </None>
-    <None Include="..\..\..\Programmer\x64\STLinkUSBDriver.dll" Pack="true" PackagePath="build\native\x64" Visible="false" Link="dll\x64\STLinkUSBDriver.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest">
-
+    <None Include="..\..\..\Programmer\x64\STLinkUSBDriver.dll" Pack="true" PackagePath="build\native\x64" Visible="false">
+      <Link>dll\x64\STLinkUSBDriver.dll</Link>
+      <CopyToOutputDirectory Condition=" '$(Platform)' == 'x64' OR '$(Platform)' == 'AnyCPU' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$(Platform)' == 'x64' OR '$(Platform)' == 'AnyCPU' ">PreserveNewest</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(OS)' == 'WINDOWS_NT' AND ('$(Platform)' == 'x86' OR '$(Platform)' == 'AnyCPU') ">
-    <None Include="..\..\..\Programmer\x86\*.dll" Pack="true" PackagePath="build\native\x86\Programmer" Visible="false" Exclude="**\STLinkUSBDriver.dll" Link="dll\x86\%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest">
-
+  <!-- Pack x86 DLLs - Always include in package regardless of build platform -->
+  <ItemGroup Condition=" '$(OS)' == 'WINDOWS_NT' ">
+    <None Include="..\..\..\Programmer\x86\*.dll" Pack="true" PackagePath="build\native\x86\Programmer" Visible="false" Exclude="**\STLinkUSBDriver.dll">
+      <Link>dll\x86\Programmer\%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$(Platform)' == 'x86' OR '$(Platform)' == 'AnyCPU' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$(Platform)' == 'x86' OR '$(Platform)' == 'AnyCPU' ">PreserveNewest</CopyToPublishDirectory>
     </None>
-    <None Include="..\..\..\Programmer\x86\STLinkUSBDriver.dll" Pack="true" PackagePath="build\native\x86" Visible="false" Link="dll\x86\STLinkUSBDriver.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest">
+    <None Include="..\..\..\Programmer\x86\STLinkUSBDriver.dll" Pack="true" PackagePath="build\native\x86" Visible="false">
+      <Link>dll\x86\STLinkUSBDriver.dll</Link>
+      <CopyToOutputDirectory Condition=" '$(Platform)' == 'x86' OR '$(Platform)' == 'AnyCPU' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$(Platform)' == 'x86' OR '$(Platform)' == 'AnyCPU' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
 
+  <!-- macOS libraries - Always include in package for cross-platform support -->
+  <ItemGroup>
+    <None Include="..\..\..\Programmer\osx\*.dylib" Pack="true" PackagePath="build\native\osx\Programmer" Visible="false" Exclude="**\libSTLinkUSBDriver.dylib;**\libCubeProgrammer_API*.dylib" Condition="Exists('..\..\..\Programmer\osx')">
+      <Link>dylib\osx\%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Include="..\..\..\Programmer\osx\libSTLinkUSBDriver.dylib" Pack="true" PackagePath="build\native\osx" Visible="false" Condition="Exists('..\..\..\Programmer\osx\libSTLinkUSBDriver.dylib')">
+      <Link>dylib\osx\libSTLinkUSBDriver.dylib</Link>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Include="..\..\..\Programmer\osx\libCubeProgrammer_API*.dylib" Pack="true" PackagePath="build\native\osx\Programmer" Visible="false" Condition="Exists('..\..\..\Programmer\osx')">
+      <Link>dylib\osx\%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <!-- Qt Frameworks for macOS -->
+    <None Include="..\..\..\Programmer\osx\QtCore.framework\**\*.*" Pack="true" PackagePath="build\native\osx\Programmer\QtCore.framework" Visible="false" Condition="Exists('..\..\..\Programmer\osx\QtCore.framework')">
+      <Link>dylib\osx\QtCore.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Include="..\..\..\Programmer\osx\QtNetwork.framework\**\*.*" Pack="true" PackagePath="build\native\osx\Programmer\QtNetwork.framework" Visible="false" Condition="Exists('..\..\..\Programmer\osx\QtNetwork.framework')">
+      <Link>dylib\osx\QtNetwork.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Include="..\..\..\Programmer\osx\QtQml.framework\**\*.*" Pack="true" PackagePath="build\native\osx\Programmer\QtQml.framework" Visible="false" Condition="Exists('..\..\..\Programmer\osx\QtQml.framework')">
+      <Link>dylib\osx\QtQml.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Include="..\..\..\Programmer\osx\QtSerialPort.framework\**\*.*" Pack="true" PackagePath="build\native\osx\Programmer\QtSerialPort.framework" Visible="false" Condition="Exists('..\..\..\Programmer\osx\QtSerialPort.framework')">
+      <Link>dylib\osx\QtSerialPort.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Include="..\..\..\Programmer\osx\QtXml.framework\**\*.*" Pack="true" PackagePath="build\native\osx\Programmer\QtXml.framework" Visible="false" Condition="Exists('..\..\..\Programmer\osx\QtXml.framework')">
+      <Link>dylib\osx\QtXml.framework\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <!-- Additional macOS files -->
+    <None Include="..\..\..\Programmer\osx\HSM\**\*.*" Pack="true" PackagePath="contentFiles\any\any\st\Programmer\HSM" Visible="false" Condition="Exists('..\..\..\Programmer\osx\HSM')">
+      <Link>st\Programmer\HSM\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Include="..\..\..\Programmer\osx\OBL\**\*.*" Pack="true" PackagePath="contentFiles\any\any\st\Programmer\OBL" Visible="false" Condition="Exists('..\..\..\Programmer\osx\OBL')">
+      <Link>st\Programmer\OBL\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <CopyToOutputDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' ">PreserveNewest</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 

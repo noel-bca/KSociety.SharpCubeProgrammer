@@ -25,12 +25,34 @@ namespace SharpCubeProgrammer.Native
         /// Only supported on Windows Vista, 7, Server 2008 and Server 2008 R2 with KB2533623.
         /// See <c>https://learn.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexa</c>.
         /// </remarks>
-        internal const int LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;        
+        internal const int LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
+
+        /// <summary>
+        /// Flag for dlopen: Lazy function call binding.
+        /// </summary>
+        internal const int RTLD_LAZY = 0x00001;
+
+        /// <summary>
+        /// Flag for dlopen: Immediate function call binding.
+        /// </summary>
+        internal const int RTLD_NOW = 0x00002;
+
+        /// <summary>
+        /// Flag for dlopen: Make symbols available for subsequently loaded libraries.
+        /// </summary>
+        internal const int RTLD_GLOBAL = 0x00100;
 
         /// <summary>
         /// The name of the Windows Kernel library.
         /// </summary>
         internal const string KernelLibName = "kernel32.dll";
+
+        /// <summary>
+        /// The name of the macOS/Linux dynamic loader library.
+        /// </summary>
+        internal const string LibDlName = "libdl";
+
+        #region [Windows P/Invoke]
 
         /// <summary>
         /// Frees a specified library.
@@ -80,5 +102,92 @@ namespace SharpCubeProgrammer.Native
             [MarshalAs(UnmanagedType.LPStr)] string lpFileName,
             IntPtr hFile,
             int dwFlags);
+
+        /// <summary>
+        /// Adds a directory to the search path used to locate DLLs for the application.
+        /// </summary>
+        /// <param name="lpPathName">The directory to be added to the search path.</param>
+        /// <returns>
+        /// If the function succeeds, the return value is an opaque pointer that can be passed to RemoveDllDirectory.
+        /// If the function fails, the return value is <see cref="IntPtr.Zero"/>.
+        /// </returns>
+        /// <remarks>
+        /// See <c>https://learn.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-adddlldirectory</c>.
+        /// </remarks>
+        [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories)]
+        [DllImport(KernelLibName, BestFitMapping = false, CharSet = CharSet.Unicode, SetLastError = true, ThrowOnUnmappableChar = true)]
+        internal static extern IntPtr AddDllDirectory(
+            [MarshalAs(UnmanagedType.LPWStr)] string lpPathName);
+
+        /// <summary>
+        /// Removes a directory that was added to the process DLL search path by using AddDllDirectory.
+        /// </summary>
+        /// <param name="cookie">The cookie returned by AddDllDirectory.</param>
+        /// <returns>If the function succeeds, the return value is nonzero. If the function fails, the return value is zero.</returns>
+        /// <remarks>
+        /// See <c>https://learn.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-removedlldirectory</c>.
+        /// </remarks>
+        [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories)]
+        [DllImport(KernelLibName, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool RemoveDllDirectory(IntPtr cookie);
+
+        /// <summary>
+        /// Adds a directory to the DLL search path.
+        /// </summary>
+        /// <param name="lpPathName">The directory to be added to the search path. If this parameter is an empty string (""), the call removes the current directory from the default DLL search order.</param>
+        /// <returns>If the function succeeds, the return value is nonzero. If the function fails, the return value is zero.</returns>
+        /// <remarks>
+        /// See <c>https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-setdlldirectoryw</c>.
+        /// Note: This function is deprecated in favor of AddDllDirectory.
+        /// </remarks>
+        [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories)]
+        [DllImport(KernelLibName, BestFitMapping = false, CharSet = CharSet.Unicode, SetLastError = true, ThrowOnUnmappableChar = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetDllDirectory(
+            [MarshalAs(UnmanagedType.LPWStr)] string lpPathName);
+
+        #endregion
+
+        #region [macOS/Linux P/Invoke]
+
+        /// <summary>
+        /// Opens a dynamic library.
+        /// </summary>
+        /// <param name="fileName">The path to the dynamic library.</param>
+        /// <param name="flags">Flags controlling how the library is loaded.</param>
+        /// <returns>A handle to the loaded library, or <see cref="IntPtr.Zero"/> on failure.</returns>
+        [DllImport(LibDlName)]
+        internal static extern IntPtr dlopen(
+            [MarshalAs(UnmanagedType.LPStr)] string fileName,
+            int flags);
+
+        /// <summary>
+        /// Closes a dynamic library.
+        /// </summary>
+        /// <param name="handle">The handle to the library to close.</param>
+        /// <returns>Zero on success, non-zero on error.</returns>
+        [DllImport(LibDlName)]
+        internal static extern int dlclose(IntPtr handle);
+
+        /// <summary>
+        /// Retrieves the address of a symbol in a dynamic library.
+        /// </summary>
+        /// <param name="handle">The handle to the library.</param>
+        /// <param name="symbol">The name of the symbol to retrieve.</param>
+        /// <returns>The address of the symbol, or <see cref="IntPtr.Zero"/> if not found.</returns>
+        [DllImport(LibDlName)]
+        internal static extern IntPtr dlsym(
+            IntPtr handle,
+            [MarshalAs(UnmanagedType.LPStr)] string symbol);
+
+        /// <summary>
+        /// Gets a description of the last error that occurred in a dl* function.
+        /// </summary>
+        /// <returns>A pointer to an error message string.</returns>
+        [DllImport(LibDlName)]
+        internal static extern IntPtr dlerror();
+
+        #endregion
     }
 }

@@ -14,6 +14,7 @@
       <Build Solution="Release|x64" Project="false" />
       <Build Solution="Release|x86" Project="false" />
     </Project>
+    <Project Path="src/01/Tests/KSociety.SharpCubeProgrammer.Tests/KSociety.SharpCubeProgrammer.Tests.csproj" />
   </Folder>
   <Folder Name="/01. Infrastructure Sub Layer/Samples/">
     <Project Path="src/01/Samples/Programming/Programming.csproj">

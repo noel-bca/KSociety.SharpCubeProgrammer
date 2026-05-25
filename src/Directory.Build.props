@@ -3,32 +3,32 @@
 
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>	
-	
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
 
-    <ProjectName Condition=" '$(ProjectName)' == '' ">$(MSBuildProjectName)</ProjectName>
-    <BaseOutputPath>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)..\build\$(ProjectName)\))</BaseOutputPath>
-    <BaseIntermediateOutputPath>$(BaseOutputPath)obj\</BaseIntermediateOutputPath>
-    <OutputPath>$(BaseOutputPath)bin\$(Configuration)\</OutputPath>	
-	
+	<Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+
+	<ProjectName Condition=" '$(ProjectName)' == '' ">$(MSBuildProjectName)</ProjectName>
+	<BaseOutputPath>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)..\build\$(ProjectName)\))</BaseOutputPath>
+	<BaseIntermediateOutputPath>$(BaseOutputPath)obj\</BaseIntermediateOutputPath>
+	<OutputPath>$(BaseOutputPath)bin\$(Configuration)\</OutputPath>	
+
 	<Title>$(AssemblyName)</Title>
-	
-    <Authors>K-Society Team</Authors>
-    <Company>K-Society</Company>
-    <Copyright>Copyright (c) K-Society and contributors 2026. All rights reserved.</Copyright>
+
+	<Authors>BCA Smart</Authors>
+	<Company>BCA Smart</Company>
+	<Copyright>Copyright (c) BCA Smart 2026. All rights reserved.</Copyright>
 	<PackageLicenseExpression>MS-RL</PackageLicenseExpression>
-	<Description>K-Society SharpCubeProgrammer is an STM32 CubeProgrammer_API C# wrapper.</Description>
-    <Product>K-Society SharpCubeProgrammer</Product>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+	<Description>BCA SharpCubeProgrammer is an STM32 CubeProgrammer_API C# wrapper with multi-platform support (Windows, macOS, Linux).</Description>
+	<Product>BCA SharpCubeProgrammer</Product>
+	<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 	<PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <PackageProjectUrl>https://k-society.github.io/KSociety.SharpCubeProgrammer</PackageProjectUrl>
-	<RepositoryUrl>https://github.com/K-Society/KSociety.SharpCubeProgrammer</RepositoryUrl>	
-	<PackageReleaseNotes>https:%2F%2Fk-society.github.io%2FKSociety.SharpCubeProgrammer%2F$(ProjectName)%2Fchange-log</PackageReleaseNotes>
+	<PackageProjectUrl>https://github.com/noel-bca/KSociety.SharpCubeProgrammer</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/noel-bca/KSociety.SharpCubeProgrammer</RepositoryUrl>	
+	<PackageReleaseNotes>https://github.com/noel-bca/KSociety.SharpCubeProgrammer/releases</PackageReleaseNotes>
 	<RepositoryType>git</RepositoryType>
 	<EmbedUntrackedSources>true</EmbedUntrackedSources>
 	<IncludeSymbols>true</IncludeSymbols>
 	<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-	<PackageTags>cubeprogrammer_api;stm32cubeprogrammer_api;cubeprogrammerapi;wrapper;cubeprogrammer;stm32;st-link;ksociety;k-society</PackageTags>
+	<PackageTags>cubeprogrammer_api;stm32cubeprogrammer_api;cubeprogrammerapi;wrapper;cubeprogrammer;stm32;st-link;bca;bca-smart;multiplatform;windows;macos;linux</PackageTags>
 	<ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
   
